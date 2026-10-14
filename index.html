@@ -3,15 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BoykoBet | Чесне віртуальне казино</title>
+  <title>BoykoBet | Преміум чесне віртуальне казино</title>
 
-  <!-- Tailwind CSS -->
+  <!-- Tailwind CSS & Confetti -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-  <!-- FontAwesome -->
+  
+  <!-- FontAwesome & Fonts -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Unbounded:wght@700;900&display=swap" rel="stylesheet">
@@ -19,12 +18,12 @@
   <style>
     body {
       font-family: 'Outfit', sans-serif;
-      background: radial-gradient(circle at 50% 0%, #17112c 0%, #08090f 100%);
+      background: radial-gradient(circle at 50% 0%, #1a1033 0%, #07080d 100%);
       color: #f8fafc;
       overflow-x: hidden;
     }
     .font-brand { font-family: 'Unbounded', sans-serif; }
-    .glow-gold { box-shadow: 0 0 25px -5px rgba(234, 179, 8, 0.4); }
+    .glow-gold { box-shadow: 0 0 25px -5px rgba(234, 179, 8, 0.45); }
     .glow-purple { box-shadow: 0 0 30px -5px rgba(168, 85, 247, 0.35); }
     .coin-perspective { perspective: 1000px; }
     .coin-3d {
@@ -52,15 +51,30 @@
       100% { filter: blur(0px); transform: translateY(0); }
     }
     .reel-spinning { animation: reelSpin 0.12s infinite; }
+    /* Скролбар */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0b0d14; }
+    ::-webkit-scrollbar-thumb { background: #2b354f; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #eab308; }
   </style>
 
-  <!-- ================= СИСТЕМА СКРИПТІВ (ЗАХИЩЕНА ВІД КЕШУ ТА ROCKET LOADER) ================= -->
+  <!-- ================= ГОЛОВНИЙ СКРИПТ (data-cfasync="false") ================= -->
   <script data-cfasync="false">
-    console.log("%c[BoykoBet] Ініціалізація ядра...", "color: #eab308; font-weight: bold; font-size: 14px;");
+    // --- ПРОМОКОДИ З ЧЕСНИМ СИНТАКСИСОМ ---
+    var PROMO_DATA = {
+      'matviygey': { amount: 5000, name: 'Спеціальний бонус від Matviy: +5,000 BB!' },
+      'klusikboss': { amount: 10000, name: 'БОС-бонус від Klusik: +10,000 BB!' },
+      'mishachortik': { amount: 15000, name: 'ГІГА-бонус від МІШИ: +15,000 BB!' },
+      'boykobigass': { amount: 50000, name: 'ДЖЕКПОТ ВІД БОЙКА: +50,000 BB!' },
+      'makeit2025': { amount: 2000, name: 'Makeit подарував вам додаткові монети: +2,000 BB!' }
+    };
 
-    // Глобальний стан
-    var STORAGE_KEY = 'boyko_bet_v4_core';
-    var WEBHOOK_KEY = 'boyko_bet_webhook_v4';
+    // Ключі сховища
+    var STORAGE_KEY = 'boyko_bet_v5_profile';
+    var WEBHOOK_KEY = 'boyko_bet_webhook_url';
+    var DEVICE_KEY = 'boyko_bet_device_fingerprint';
+    var DEVICE_PROMOS_KEY = 'boyko_bet_device_promos';
+    var LAST_DAILY_KEY = 'boyko_bet_last_daily';
 
     var user = {
       username: 'Гість',
@@ -70,8 +84,38 @@
 
     var audioCtx = null;
     var isMuted = false;
+    var failedPromoAttempts = 0;
+    var promoLockUntil = 0;
+    var lastOrderTimestamp = 0;
 
-    // Вбудований синтезатор звуків SFX
+    // Генерація та отримання Device ID (захист від повторних абузів з нових нікнеймів)
+    function getDeviceId() {
+      var d = localStorage.getItem(DEVICE_KEY);
+      if (!d) {
+        d = 'dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        localStorage.setItem(DEVICE_KEY, d);
+      }
+      return d;
+    }
+
+    function getDeviceUsedPromos() {
+      try {
+        var p = localStorage.getItem(DEVICE_PROMOS_KEY);
+        return p ? JSON.parse(p) : [];
+      } catch(e) {
+        return [];
+      }
+    }
+
+    function markDevicePromoUsed(code) {
+      var list = getDeviceUsedPromos();
+      if (!list.includes(code)) {
+        list.push(code);
+        localStorage.setItem(DEVICE_PROMOS_KEY, JSON.stringify(list));
+      }
+    }
+
+    // Аудіо двигун (Web Audio API)
     function getAudioContext() {
       if (!audioCtx) {
         var AC = window.AudioContext || window.webkitAudioContext;
@@ -92,16 +136,14 @@
         var gain = ctx.createGain();
         osc.type = type || 'sine';
         osc.frequency.setValueAtTime(freqStart, ctx.currentTime);
-        if (freqEnd) {
-          osc.frequency.exponentialRampToValueAtTime(freqEnd, ctx.currentTime + dur);
-        }
+        if (freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, ctx.currentTime + dur);
         gain.gain.setValueAtTime(0.12, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + dur);
-      } catch (e) {}
+      } catch(e) {}
     }
 
     function playWinSound() {
@@ -141,12 +183,22 @@
       } catch(e) {}
     }
 
-    // Профіль та інтерфейс
+    function toggleSound() {
+      isMuted = !isMuted;
+      var icon = document.getElementById('sound-icon');
+      if (icon) {
+        icon.className = isMuted ? 'fa-solid fa-volume-xmark text-rose-400' : 'fa-solid fa-volume-high text-yellow-400';
+      }
+      if (!isMuted) playTone(800, 400, 0.05, 'sine');
+    }
+
+    // Профіль
     function loadProfile() {
       try {
         var raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           user = JSON.parse(raw);
+          if (isNaN(user.balance) || user.balance < 0) user.balance = 0;
           var m = document.getElementById('auth-modal');
           if (m) m.classList.add('hidden');
           refreshUI();
@@ -166,8 +218,9 @@
     function refreshUI() {
       var bal = document.getElementById('user-balance');
       var usr = document.getElementById('nav-user-name');
-      if (bal) bal.innerText = Number(user.balance).toLocaleString();
+      if (bal) bal.innerText = Math.floor(user.balance).toLocaleString();
       if (usr) usr.innerText = user.username;
+      updateDailyTimerUI();
     }
 
     function showAuthModal() {
@@ -179,10 +232,8 @@
       playTone(800, 400, 0.05, 'sine');
       var inp = document.getElementById('auth-username');
       var name = inp ? inp.value.trim() : '';
-      if (!name) {
-        alert('Введіть нікнейм!');
-        return;
-      }
+      if (!name) return alert('Введіть нікнейм!');
+
       user = { username: name, balance: 1000, usedPromos: [] };
       saveProfile();
       var m = document.getElementById('auth-modal');
@@ -192,35 +243,57 @@
     }
 
     function logoutUser() {
-      if (confirm('Бажаєте скинути профіль та вийти?')) {
+      if (confirm('Бажаєте вийти з акаунта?')) {
         localStorage.removeItem(STORAGE_KEY);
         location.reload();
       }
     }
 
+    // Чесний 24-годинний щоденний бонус з захистом
     function getDailyBonus() {
       playTone(800, 400, 0.05, 'sine');
+      var now = Date.now();
+      var lastClaim = parseInt(localStorage.getItem(LAST_DAILY_KEY) || '0', 10);
+      var cooldown = 24 * 60 * 60 * 1000; // 24 години
+
+      if (now - lastClaim < cooldown) {
+        var remainMs = cooldown - (now - lastClaim);
+        var hours = Math.floor(remainMs / (1000 * 60 * 60));
+        var mins = Math.floor((remainMs % (1000 * 60 * 60)) / (1000 * 60));
+        alert('⏳ Бонус уже отримано! Наступний через ' + hours + ' год ' + mins + ' хв.');
+        return;
+      }
+
       user.balance += 500;
+      localStorage.setItem(LAST_DAILY_KEY, String(now));
       saveProfile();
       playWinSound();
-      if (typeof confetti === 'function') confetti({ particleCount: 40 });
-      alert('Бонус отримано: +500 BB!');
+      if (typeof confetti === 'function') confetti({ particleCount: 50 });
+      alert('🎉 Вам нараховано щоденний бонус: +500 BB!');
     }
 
-    function toggleSound() {
-      isMuted = !isMuted;
-      var icon = document.getElementById('sound-icon');
-      if (icon) {
-        icon.className = isMuted ? 'fa-solid fa-volume-xmark text-rose-400' : 'fa-solid fa-volume-high text-yellow-400';
+    function updateDailyTimerUI() {
+      var btn = document.getElementById('daily-bonus-btn');
+      if (!btn) return;
+      var now = Date.now();
+      var lastClaim = parseInt(localStorage.getItem(LAST_DAILY_KEY) || '0', 10);
+      var cooldown = 24 * 60 * 60 * 1000;
+
+      if (now - lastClaim < cooldown) {
+        var remainMs = cooldown - (now - lastClaim);
+        var hours = Math.floor(remainMs / (1000 * 60 * 60));
+        var mins = Math.floor((remainMs % (1000 * 60 * 60)) / (1000 * 60));
+        btn.innerHTML = '<i class="fa-solid fa-clock text-xs"></i> ' + hours + 'г ' + mins + 'хв';
+        btn.className = "whitespace-nowrap bg-slate-800 text-gray-400 border border-slate-700 px-4 py-2.5 rounded-2xl text-xs font-bold cursor-not-allowed";
+      } else {
+        btn.innerHTML = '<i class="fa-solid fa-bolt text-xs"></i> Бонус +500 BB';
+        btn.className = "whitespace-nowrap bg-yellow-500 hover:bg-yellow-400 text-black font-brand font-bold px-5 py-2.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-lg glow-gold transform active:scale-95";
       }
-      if (!isMuted) playTone(800, 400, 0.05, 'sine');
     }
 
     function switchTab(name) {
       playTone(700, 350, 0.04, 'sine');
-      document.querySelectorAll('.game-screen').forEach(function(el) {
-        el.classList.add('hidden');
-      });
+      document.querySelectorAll('.game-screen').forEach(function(el) { el.classList.add('hidden'); });
       document.querySelectorAll('.game-tab-btn').forEach(function(btn) {
         btn.classList.remove('bg-yellow-500', 'text-black', 'border-yellow-400');
         btn.classList.add('bg-slate-900', 'text-gray-400', 'border-slate-800');
@@ -233,6 +306,12 @@
         activeTab.classList.add('bg-yellow-500', 'text-black', 'border-yellow-400');
         activeTab.classList.remove('bg-slate-900', 'text-gray-400', 'border-slate-800');
       }
+    }
+
+    function sanitizeBet(val) {
+      var n = Math.floor(Number(val));
+      if (isNaN(n) || n <= 0) return 0;
+      return n;
     }
 
     function setBet(id, val) {
@@ -249,14 +328,15 @@
     }
     var multBetVal = multiplyBet;
 
-    // Слоти
+    // ================= 1. СЛОТИ =================
     var SLOT_SYMBOLS = ['🍒', '🍋', '🍇', '🔔', '7️⃣', '💎', '👑'];
     function spinSlots() {
       playTone(600, 300, 0.05, 'sine');
       var inp = document.getElementById('slots-bet');
-      var bet = parseInt(inp.value, 10);
-      if (isNaN(bet) || bet <= 0) return alert('Вкажіть ставку!');
-      if (user.balance < bet) return alert('Недостатньо BB!');
+      var bet = sanitizeBet(inp ? inp.value : 0);
+
+      if (bet < 10) return alert('Мінімальна ставка: 10 BB!');
+      if (user.balance < bet) return alert('Недостатньо BB на балансі!');
 
       user.balance -= bet;
       saveProfile();
@@ -265,7 +345,7 @@
       var msg = document.getElementById('slots-msg');
       if (btn) btn.disabled = true;
       if (msg) {
-        msg.innerText = 'Обертання...';
+        msg.innerText = 'Обертання барабанів...';
         msg.className = 'h-7 mt-4 text-center font-brand font-bold text-sm text-yellow-400';
       }
 
@@ -310,7 +390,7 @@
             playWinSound();
             if (typeof confetti === 'function') confetti({ particleCount: 60 });
             if (msg) {
-              msg.innerText = '🎉 Виграш: +' + win + ' BB!';
+              msg.innerText = '🎉 Виграш: +' + win.toLocaleString() + ' BB!';
               msg.className = 'h-7 mt-4 text-center font-brand font-black text-sm text-emerald-400';
             }
           } else {
@@ -324,7 +404,7 @@
       }, 75);
     }
 
-    // Монетка
+    // ================= 2. МОНЕТКА =================
     var chosenCoinSide = 'heads';
     var isFlippingCoin = false;
     function chooseSide(side) {
@@ -345,8 +425,9 @@
     function flipCoinAction() {
       if (isFlippingCoin) return;
       var inp = document.getElementById('coin-bet');
-      var bet = parseInt(inp.value, 10);
-      if (isNaN(bet) || bet <= 0) return alert('Вкажіть ставку!');
+      var bet = sanitizeBet(inp ? inp.value : 0);
+
+      if (bet < 10) return alert('Мінімальна ставка: 10 BB!');
       if (user.balance < bet) return alert('Недостатньо BB!');
 
       user.balance -= bet;
@@ -358,7 +439,7 @@
       var btn = document.getElementById('coin-flip-btn');
       if (btn) btn.disabled = true;
       if (msg) {
-        msg.innerText = 'Монетка в польоті...';
+        msg.innerText = 'Монетка летить...';
         msg.className = 'h-6 mt-6 font-mono font-bold text-sm text-yellow-400';
       }
 
@@ -377,7 +458,7 @@
           playWinSound();
           if (typeof confetti === 'function') confetti({ particleCount: 50 });
           if (msg) {
-            msg.innerText = 'Влучно! Випав ' + ((outcome === 'heads') ? 'Орел' : 'Решка') + ' (+' + win + ' BB)';
+            msg.innerText = 'Влучно! Випав ' + ((outcome === 'heads') ? 'Орел' : 'Решка') + ' (+' + win.toLocaleString() + ' BB)';
             msg.className = 'h-6 mt-6 font-mono font-black text-sm text-emerald-400';
           }
         } else {
@@ -398,7 +479,7 @@
       }, 1250);
     }
 
-    // Міни
+    // ================= 3. МІНИ =================
     var minesState = { active: false, bet: 0, grid: [], revealed: [], minesCount: 3, currentMultiplier: 1.00 };
     function initMinesGrid() {
       var c = document.getElementById('mines-grid');
@@ -406,7 +487,7 @@
       c.innerHTML = '';
       for (var i = 0; i < 25; i++) {
         var tile = document.createElement('button');
-        tile.className = 'w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 border border-slate-700/80 rounded-2xl text-xl flex items-center justify-center hover:border-yellow-400 transition';
+        tile.className = 'w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 border border-slate-700/80 rounded-2xl text-xl flex items-center justify-center hover:border-yellow-400 transition transform hover:scale-105 active:scale-95';
         tile.id = 'tile-' + i;
         tile.onclick = (function(idx) { return function() { onTileClick(idx); }; })(i);
         c.appendChild(tile);
@@ -415,9 +496,10 @@
 
     function startMinesGame() {
       playTone(600, 300, 0.05, 'sine');
-      var bet = parseInt(document.getElementById('mines-bet').value, 10);
-      var mCount = parseInt(document.getElementById('mines-count').value, 10);
-      if (isNaN(bet) || bet <= 0) return alert('Вкажіть ставку!');
+      var bet = sanitizeBet(document.getElementById('mines-bet').value);
+      var mCount = Math.floor(Number(document.getElementById('mines-count').value));
+
+      if (bet < 10) return alert('Мінімальна ставка: 10 BB!');
       if (user.balance < bet) return alert('Недостатньо BB!');
       if (mCount < 1 || mCount > 24) return alert('Кількість мін: від 1 до 24');
 
@@ -437,7 +519,7 @@
       document.getElementById('mines-mult-display').innerText = '1.00x';
       var st = document.getElementById('mines-status-text');
       if (st) {
-        st.innerText = 'Раунд активний! Відкривайте клітинки.';
+        st.innerText = 'Раунд активний! Шукайте діаманти.';
         st.className = 'h-6 mt-4 font-mono font-bold text-xs sm:text-sm text-yellow-400';
       }
     }
@@ -485,7 +567,7 @@
       if (typeof confetti === 'function') confetti({ particleCount: 70 });
       var st = document.getElementById('mines-status-text');
       if (st) {
-        st.innerText = 'Забрано: +' + win + ' BB (' + minesState.currentMultiplier + 'x)!';
+        st.innerText = 'Забрано: +' + win.toLocaleString() + ' BB (' + minesState.currentMultiplier + 'x)!';
         st.className = 'h-6 mt-4 font-mono font-black text-xs sm:text-sm text-emerald-400';
       }
       finishMinesGame(true);
@@ -505,17 +587,17 @@
       if (!won) {
         var st = document.getElementById('mines-status-text');
         if (st) {
-          st.innerText = 'Вибух! Спробуйте ще раз.';
+          st.innerText = 'Вибух! Ставку втрачено.';
           st.className = 'h-6 mt-4 font-mono font-bold text-xs sm:text-sm text-rose-500';
         }
       }
     }
 
-    // Скриня
+    // ================= 4. СКРИНЯ =================
     function openBoykoCase() {
       playTone(600, 300, 0.05, 'sine');
       var cost = 300;
-      if (user.balance < cost) return alert('Потрібно 300 BB!');
+      if (user.balance < cost) return alert('Потрібно мінімум 300 BB!');
 
       user.balance -= cost;
       saveProfile();
@@ -526,7 +608,7 @@
       if (btn) btn.disabled = true;
       if (box) box.classList.add('animate-bounce');
       if (txt) {
-        txt.innerText = 'Відкриття скрині...';
+        txt.innerText = 'Скриня відкривається...';
         txt.className = 'h-8 font-brand font-black text-base text-yellow-400 mb-6';
       }
 
@@ -543,7 +625,7 @@
           var prize = 150;
           var label = 'Звичайна нагорода: 150 BB';
 
-          if (rand < 2) { prize = 5000; label = '👑 ДЖЕКПОТ: 5,000 BB!'; }
+          if (rand < 2) { prize = 5000; label = '👑 ДЖЕКПОТ БОЙКА: 5,000 BB!'; }
           else if (rand < 10) { prize = 1200; label = '💎 Кристал: 1,200 BB!'; }
           else if (rand < 35) { prize = 600; label = '⚡ Рідкісний дроп: 600 BB!'; }
           else if (rand < 65) { prize = 350; label = '🪙 Окуп: 350 BB!'; }
@@ -566,11 +648,7 @@
       }, 90);
     }
 
-    // Промокоди
-    var PROMO_CODES = {
-      'matviygey': { amount: 5000, desc: 'Бонус від Matviy: +5,000 BB!' },
-      'klusikboss': { amount: 10000, desc: 'БОС-бонус від Klusik: +10,000 BB!' }
-    };
+    // ================= 5. ПРОМОКОДИ З АНТИ-АБУЗОМ =================
     function openPromoModal() {
       playTone(700, 350, 0.04, 'sine');
       var m = document.getElementById('promo-modal');
@@ -583,34 +661,82 @@
       var m = document.getElementById('promo-modal');
       if (m) m.classList.add('hidden');
     }
+
     function redeemPromoCode() {
       playTone(600, 300, 0.05, 'sine');
-      var inp = document.getElementById('promo-code-input');
-      var code = inp ? inp.value.trim().toLowerCase() : '';
+      var now = Date.now();
       var toast = document.getElementById('promo-toast');
 
-      if (!code) return;
-      if (!PROMO_CODES[code]) {
-        if (toast) { toast.innerText = 'Недійсний промокод!'; toast.className = 'text-xs font-bold text-center h-5 text-rose-500'; }
-        return;
-      }
-      if (user.usedPromos.includes(code)) {
-        if (toast) { toast.innerText = 'Ви вже активували цей код!'; toast.className = 'text-xs font-bold text-center h-5 text-amber-400'; }
+      // Блокування від брутфорсу (підбору)
+      if (now < promoLockUntil) {
+        var waitSec = Math.ceil((promoLockUntil - now) / 1000);
+        if (toast) {
+          toast.innerText = 'Забагато спроб! Зачекайте ' + waitSec + ' сек.';
+          toast.className = 'text-xs font-bold text-center h-5 text-rose-500';
+        }
         return;
       }
 
-      var rew = PROMO_CODES[code].amount;
-      user.balance += rew;
+      var inp = document.getElementById('promo-code-input');
+      var code = inp ? inp.value.trim().toLowerCase() : '';
+
+      if (!code) return;
+
+      if (!PROMO_DATA[code]) {
+        failedPromoAttempts++;
+        if (failedPromoAttempts >= 3) {
+          promoLockUntil = now + 30000; // 30 секунд блок
+          failedPromoAttempts = 0;
+          if (toast) {
+            toast.innerText = '3 невірні спроби! Блокування на 30 секунд.';
+            toast.className = 'text-xs font-bold text-center h-5 text-rose-500';
+          }
+        } else {
+          if (toast) {
+            toast.innerText = 'Недійсний промокод! (' + (3 - failedPromoAttempts) + ' спр. лишилось)';
+            toast.className = 'text-xs font-bold text-center h-5 text-rose-500';
+          }
+        }
+        return;
+      }
+
+      // Перевірка на абуз по поточному акаунту
+      if (user.usedPromos.includes(code)) {
+        if (toast) {
+          toast.innerText = 'Ви вже активували цей код на акаунті!';
+          toast.className = 'text-xs font-bold text-center h-5 text-amber-400';
+        }
+        return;
+      }
+
+      // Перевірка на абуз по пристрою (Anti-Multiaccting)
+      var devPromos = getDeviceUsedPromos();
+      if (devPromos.includes(code)) {
+        if (toast) {
+          toast.innerText = 'Цей код уже був використаний на цьому пристрої!';
+          toast.className = 'text-xs font-bold text-center h-5 text-rose-400';
+        }
+        return;
+      }
+
+      // Успішна активація
+      var promo = PROMO_DATA[code];
+      user.balance += promo.amount;
       user.usedPromos.push(code);
+      markDevicePromoUsed(code);
       saveProfile();
 
-      if (toast) { toast.innerText = PROMO_CODES[code].desc; toast.className = 'text-xs font-bold text-center h-5 text-emerald-400'; }
+      failedPromoAttempts = 0;
+      if (toast) {
+        toast.innerText = promo.name;
+        toast.className = 'text-xs font-bold text-center h-5 text-emerald-400';
+      }
       playWinSound();
       if (typeof confetti === 'function') confetti({ particleCount: 70 });
       if (inp) inp.value = '';
     }
 
-    // Магазин
+    // ================= 6. МАГАЗИН З ЗАХИСТОМ ВІД СПАМУ =================
     function openShopModal() {
       playTone(700, 350, 0.04, 'sine');
       var m = document.getElementById('shop-modal');
@@ -623,41 +749,65 @@
       var m = document.getElementById('shop-modal');
       if (m) m.classList.add('hidden');
     }
+
     function orderExchangeItem(itemName, price) {
       playTone(600, 300, 0.05, 'sine');
+      var now = Date.now();
+      var alertEl = document.getElementById('shop-alert');
+
+      // Анти-спам вебхука (кулдаун 20 секунд між запитами)
+      if (now - lastOrderTimestamp < 20000) {
+        var wait = Math.ceil((20000 - (now - lastOrderTimestamp)) / 1000);
+        if (alertEl) {
+          alertEl.innerText = 'Зачекайте ' + wait + ' сек. перед наступним обміном!';
+          alertEl.className = 'mt-4 text-xs font-bold text-center text-amber-400';
+        }
+        return;
+      }
+
       var hook = (document.getElementById('webhook-url') || {}).value || '';
       var contact = (document.getElementById('recipient-contact') || {}).value || '';
-      var alertEl = document.getElementById('shop-alert');
 
       hook = hook.trim();
       contact = contact.trim();
 
       if (!contact) {
-        if (alertEl) { alertEl.innerText = 'Вкажіть контакт для виплати!'; alertEl.className = 'mt-4 text-xs font-bold text-center text-rose-400'; }
+        if (alertEl) {
+          alertEl.innerText = 'Вкажіть контакт / картку для отримання призу!';
+          alertEl.className = 'mt-4 text-xs font-bold text-center text-rose-400';
+        }
         return;
       }
       if (user.balance < price) {
-        if (alertEl) { alertEl.innerText = 'Недостатньо BB монет!'; alertEl.className = 'mt-4 text-xs font-bold text-center text-rose-400'; }
+        if (alertEl) {
+          alertEl.innerText = 'Недостатньо BB монет на балансі!';
+          alertEl.className = 'mt-4 text-xs font-bold text-center text-rose-400';
+        }
         return;
       }
 
       if (hook) localStorage.setItem(WEBHOOK_KEY, hook);
 
-      if (alertEl) { alertEl.innerText = 'Обробка заявки...'; alertEl.className = 'mt-4 text-xs font-bold text-center text-yellow-400'; }
+      if (alertEl) {
+        alertEl.innerText = 'Обробка та відправка заявки...';
+        alertEl.className = 'mt-4 text-xs font-bold text-center text-yellow-400';
+      }
 
       var payload = {
-        username: "BoykoBet Cashier",
+        username: "BoykoBet Security Guard",
         avatar_url: "https://cdn-icons-png.flaticon.com/512/2953/2953363.png",
         embeds: [{
-          title: "🎰 Нова заявка на вивід BoykoBet",
+          title: "🎰 Нова заявка на вивід / обмін BoykoBet",
           color: 16766720,
           fields: [
             { name: "👤 Користувач", value: String(user.username), inline: true },
-            { name: "🎁 Товар", value: String(itemName), inline: true },
-            { name: "🪙 Вартість", value: String(price) + " BB", inline: true },
-            { name: "📱 Реквізити", value: String(contact), inline: false },
-            { name: "⏰ Час", value: new Date().toLocaleString('uk-UA'), inline: false }
-          ]
+            { name: "🎁 Нагорода", value: String(itemName), inline: true },
+            { name: "🪙 Вартість", value: String(price.toLocaleString()) + " BB", inline: true },
+            { name: "📱 Реквізити / Контакт", value: String(contact), inline: false },
+            { name: "🛡️ Device ID", value: '`' + getDeviceId().substring(0, 16) + '...`', inline: true },
+            { name: "⏰ Час заявки", value: new Date().toLocaleString('uk-UA'), inline: true }
+          ],
+          footer: { text: "BoykoBet Provably Fair & Anti-Abuse System" }
         }]
       };
 
@@ -668,6 +818,7 @@
       }
 
       user.balance -= price;
+      lastOrderTimestamp = now;
       saveProfile();
       playWinSound();
       if (typeof confetti === 'function') confetti({ particleCount: 75 });
@@ -677,7 +828,7 @@
       }
     }
 
-    // Реєстрація у глобальному об'єкті window
+    // Реєстрація у глобальному просторі імен window
     window.loginUser = loginUser;
     window.logoutUser = logoutUser;
     window.getDailyBonus = getDailyBonus;
@@ -702,18 +853,20 @@
 
     // Автоініціалізація
     window.addEventListener('DOMContentLoaded', function() {
+      getDeviceId(); // ініціалізація захисту пристрою
       loadProfile();
       initMinesGrid();
       var saved = localStorage.getItem(WEBHOOK_KEY);
       var inp = document.getElementById('webhook-url');
       if (saved && inp) inp.value = saved;
-      console.log("%c[BoykoBet] JS завантажено успішно! Готовий до гри.", "color: #10b981; font-weight: bold; font-size: 14px;");
+      setInterval(updateDailyTimerUI, 30000); // Оновлювати таймер щохвилини
+      console.log("%c[BoykoBet] Ядро з анти-абузом запущено успішно!", "color: #10b981; font-weight: bold; font-size: 14px;");
     });
   </script>
 </head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-yellow-500 selection:text-black">
 
-  <!-- ================= МОДАЛКА АВТОРИЗАЦІЇ ================= -->
+  <!-- ================= АВТОРИЗАЦІЯ ================= -->
   <div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md hidden p-4">
     <div class="bg-gradient-to-b from-slate-900 to-slate-950 border border-yellow-500/40 rounded-3xl p-8 max-w-md w-full shadow-2xl relative glow-gold">
       <div class="text-center mb-6">
@@ -721,7 +874,7 @@
           B
         </div>
         <h2 class="font-brand text-2xl font-black text-yellow-400">Boyko<span class="text-white">Bet</span></h2>
-        <p class="text-xs text-gray-400 mt-1">Введіть нікнейм для старту</p>
+        <p class="text-xs text-gray-400 mt-1">Введіть нікнейм для входу у хаб розваг</p>
       </div>
 
       <div class="space-y-4">
@@ -750,7 +903,7 @@
         <div>
           <div class="flex items-center gap-2">
             <span class="font-brand font-black text-xl text-yellow-400 tracking-tight">Boyko<span class="text-white">Bet</span></span>
-            <span class="text-[10px] bg-emerald-500/10 text-emerald-400 font-extrabold px-2 py-0.5 rounded-full border border-emerald-500/20">FAIR</span>
+            <span class="text-[10px] bg-emerald-500/10 text-emerald-400 font-extrabold px-2 py-0.5 rounded-full border border-emerald-500/20">ANTI-ABUSE</span>
           </div>
           <span class="text-[11px] text-gray-400 block -mt-1 font-medium">100% Чесні математичні шанси</span>
         </div>
@@ -773,10 +926,10 @@
         <!-- Кнопка Магазин -->
         <button onclick="openShopModal()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold font-brand transition shadow-md flex items-center gap-1.5 transform active:scale-95">
           <i class="fa-solid fa-shop"></i>
-          <span class="hidden sm:inline">Обмін</span>
+          <span class="hidden sm:inline">Магазин</span>
         </button>
 
-        <!-- Перемикач SFX -->
+        <!-- SFX -->
         <button onclick="toggleSound()" title="Звук" class="w-9 h-9 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center hover:bg-slate-800 transition">
           <i id="sound-icon" class="fa-solid fa-volume-high text-yellow-400"></i>
         </button>
@@ -795,22 +948,22 @@
   <!-- ================= ГОЛОВНИЙ КОНТЕНТ ================= -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full space-y-7">
     
-    <!-- Hero Блок -->
+    <!-- Hero / Бонус -->
     <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-950/70 via-slate-900 to-slate-950 border border-purple-500/20 p-5 sm:p-7 glow-purple flex flex-col md:flex-row items-center justify-between gap-6">
       <div class="space-y-2 text-center md:text-left z-10">
         <div class="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1 rounded-full text-yellow-400 text-xs font-bold">
-          <i class="fa-solid fa-shield-halved"></i> 100% Provably Fair
+          <i class="fa-solid fa-shield-halved"></i> 100% Чесні шанси та відкритий RNG
         </div>
         <h1 class="text-2xl sm:text-3xl font-brand font-black text-white">
-          Казино розваг на <span class="text-yellow-400">BoykoCoins</span>
+          Грай та перемагай на <span class="text-yellow-400">BoykoCoins</span>
         </h1>
         <p class="text-xs sm:text-sm text-gray-400 max-w-xl">
-          Вигравай віртуальні монети та обмінюй їх на <span class="text-purple-400 font-semibold">MakeIt Premium (7d)</span> або <span class="text-yellow-400 font-semibold">1 грн</span> через Discord Webhook!
+          Крути слоти, шукай діаманти на мінах або відкривай містичні скрині. Зароблені BB можна обміняти на <span class="text-purple-400 font-semibold">MakeIt Premium</span>, реальні кошти або ексклюзивні нагороди!
         </p>
       </div>
 
       <div class="flex flex-col sm:flex-row items-center gap-3 z-10">
-        <button onclick="getDailyBonus()" class="whitespace-nowrap bg-yellow-500 hover:bg-yellow-400 text-black font-brand font-bold px-5 py-3 rounded-2xl text-xs uppercase tracking-wider transition shadow-lg glow-gold transform active:scale-95 flex items-center gap-2">
+        <button id="daily-bonus-btn" onclick="getDailyBonus()" class="whitespace-nowrap bg-yellow-500 hover:bg-yellow-400 text-black font-brand font-bold px-5 py-3 rounded-2xl text-xs uppercase tracking-wider transition shadow-lg glow-gold transform active:scale-95 flex items-center gap-2">
           <i class="fa-solid fa-bolt text-sm"></i> Бонус +500 BB
         </button>
       </div>
@@ -894,11 +1047,11 @@
       </div>
     </div>
 
-    <!-- ================= МОНЕТКА (3D) ================= -->
+    <!-- ================= МОНЕТКА ================= -->
     <div id="view-coinflip" class="game-screen hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2 bg-gradient-to-b from-slate-900 to-slate-950 border border-yellow-500/20 rounded-3xl p-8 flex flex-col items-center justify-center relative overflow-hidden">
         <div class="text-center mb-8">
-          <span class="text-[11px] font-bold text-yellow-400 uppercase tracking-widest block">Шанс: рівно 50.00%</span>
+          <span class="text-[11px] font-bold text-yellow-400 uppercase tracking-widest block">Чесний шанс: 50.00%</span>
           <h2 class="font-brand font-black text-2xl text-white">ORBITAL COIN FLIP</h2>
         </div>
 
@@ -916,7 +1069,7 @@
         </div>
 
         <div id="coin-msg" class="h-6 mt-6 font-mono font-bold text-sm text-yellow-400">
-          Оберіть сторону та кидайте!
+          Оберіть сторону та підкидайте!
         </div>
       </div>
 
@@ -947,7 +1100,7 @@
       </div>
     </div>
 
-    <!-- ================= BOYKO МІНИ ================= -->
+    <!-- ================= МІНИ ================= -->
     <div id="view-mines" class="game-screen hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div id="mines-board-container" class="lg:col-span-2 bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center relative">
         <div class="text-center mb-6">
@@ -958,7 +1111,7 @@
         <div id="mines-grid" class="grid grid-cols-5 gap-2.5 sm:gap-3 p-4 bg-slate-950/80 rounded-2xl border border-slate-800"></div>
 
         <div id="mines-status-text" class="h-6 mt-4 font-mono font-bold text-xs sm:text-sm text-gray-400">
-          Вкажіть міни та натисніть «Почати раунд»
+          Вкажіть кількість мін та почніть раунд
         </div>
       </div>
 
@@ -992,7 +1145,7 @@
       </div>
     </div>
 
-    <!-- ================= СКРИНЯ УДАЧІ ================= -->
+    <!-- ================= СКРИНЯ ================= -->
     <div id="view-cases" class="game-screen hidden">
       <div class="max-w-2xl mx-auto bg-slate-900 border border-purple-500/30 rounded-3xl p-8 text-center relative overflow-hidden glow-purple">
         <h2 class="font-brand font-black text-2xl text-white mb-2">МІСТИЧНА СКРИНЯ БОЙКА</h2>
@@ -1028,7 +1181,7 @@
 
       <div class="space-y-4">
         <div>
-          <label class="text-xs text-gray-400 block mb-1">Код (matviygey / klusikboss):</label>
+          <label class="text-xs text-gray-400 block mb-1">Секретний промокод:</label>
           <input type="text" id="promo-code-input" placeholder="Введіть код..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono uppercase tracking-wider focus:border-yellow-400 focus:outline-none text-sm">
         </div>
 
@@ -1041,62 +1194,159 @@
     </div>
   </div>
 
-  <!-- ================= МОДАЛКА: ОБМІН / WEBHOOK ================= -->
+  <!-- ================= МОДАЛКА: МАГАЗИН (РОЗШИРЕНИЙ СПИСОК НАГОРОД) ================= -->
   <div id="shop-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md hidden p-4">
-    <div class="bg-slate-900 border border-yellow-500/30 rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
+    <div class="bg-slate-900 border border-yellow-500/30 rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center mb-4">
         <div>
-          <h3 class="font-brand font-bold text-lg text-white">Обмін та вивід BoykoBet</h3>
-          <p class="text-xs text-gray-400">Обмінюйте монети на реальні нагороди</p>
+          <h3 class="font-brand font-bold text-lg text-white">Магазин нагород BoykoBet</h3>
+          <p class="text-xs text-gray-400">Обмінюйте монети на підписки, реальні кошти або рофельні призи</p>
         </div>
         <button onclick="closeShopModal()" class="text-gray-400 hover:text-white text-lg">✕</button>
       </div>
 
       <div class="mb-4 p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
         <label class="text-[11px] font-bold text-yellow-400 uppercase tracking-wide block mb-1">
-          <i class="fa-brands fa-discord"></i> Discord Webhook URL (для автоматичної заявки):
+          <i class="fa-brands fa-discord"></i> Discord Webhook URL (для оформлення замовлення):
         </label>
         <input type="text" id="webhook-url" placeholder="https://discord.com/api/webhooks/..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-gray-200 focus:border-yellow-400 focus:outline-none">
-        <span class="text-[10px] text-gray-500 block mt-1">URL зберігається у браузері. Заявка відправиться у вказаний канал!</span>
+        <span class="text-[10px] text-gray-500 block mt-1">Зберігається у вашому браузері. Заявка автоматично надішлеться у ваш канал!</span>
       </div>
 
       <div class="mb-5">
-        <label class="text-xs font-bold text-gray-300 block mb-1">Ваш контакт (Discord / картка для 1 грн):</label>
-        <input type="text" id="recipient-contact" placeholder="@discord_tag або номер картки" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:border-yellow-400 focus:outline-none">
+        <label class="text-xs font-bold text-gray-300 block mb-1">Ваш контакт (Discord тег / номер картки для виплати):</label>
+        <input type="text" id="recipient-contact" placeholder="@discord_tag або 4149 4999 ...." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:border-yellow-400 focus:outline-none">
       </div>
 
-      <div class="space-y-4">
-        <!-- MakeIt Premium -->
-        <div class="border border-slate-800 bg-slate-950/70 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div class="flex items-center gap-3.5">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white text-2xl shadow-md">
+      <!-- Категорія: Реальні нагороди -->
+      <div class="space-y-3 mb-6">
+        <div class="text-xs font-bold text-yellow-400 uppercase tracking-wider flex items-center gap-1.5">
+          <i class="fa-solid fa-star"></i> Офіційні призи та виплати:
+        </div>
+
+        <!-- 1. MakeIt Premium 7d -->
+        <div class="border border-slate-800 bg-slate-950/70 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white text-xl">
               <i class="fa-solid fa-crown"></i>
             </div>
             <div>
-              <div class="font-brand font-bold text-sm text-white">MakeIt Premium (7 днів)</div>
-              <div class="text-xs text-gray-400">Преміум доступ до сервісу MakeIt</div>
+              <div class="font-brand font-bold text-xs text-white">MakeIt Premium (7 днів)</div>
+              <div class="text-[11px] text-gray-400">Миттєва преміум підписка MakeIt</div>
               <div class="text-xs font-mono font-bold text-yellow-400 mt-0.5">10,000 BB</div>
             </div>
           </div>
-          <button onclick="orderExchangeItem('MakeIt Premium 7d', 10000)" class="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 text-white font-brand font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider transition">
+          <button onclick="orderExchangeItem('MakeIt Premium 7d', 10000)" class="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 text-white font-brand font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition">
             Обміняти 🎁
           </button>
         </div>
 
-        <!-- 1 грн -->
-        <div class="border border-slate-800 bg-slate-950/70 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div class="flex items-center gap-3.5">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-yellow-500 to-amber-600 flex items-center justify-center text-black text-2xl shadow-md">
+        <!-- 2. 1 грн -->
+        <div class="border border-slate-800 bg-slate-950/70 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-yellow-500 to-amber-600 flex items-center justify-center text-black text-xl">
               <i class="fa-solid fa-money-bill-wave"></i>
             </div>
             <div>
-              <div class="font-brand font-bold text-sm text-white">1 Гривня на картку</div>
-              <div class="text-xs text-gray-400">Реальний вивід на банківську картку</div>
+              <div class="font-brand font-bold text-xs text-white">1 Гривня на картку</div>
+              <div class="text-[11px] text-gray-400">Швидка виплата на будь-який український банк</div>
               <div class="text-xs font-mono font-bold text-yellow-400 mt-0.5">5,000 BB</div>
             </div>
           </div>
-          <button onclick="orderExchangeItem('1 грн (Реальний переказ)', 5000)" class="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-amber-600 hover:opacity-90 text-black font-brand font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider transition">
+          <button onclick="orderExchangeItem('1 грн на картку', 5000)" class="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-amber-600 hover:opacity-90 text-black font-brand font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition">
             Обміняти 💳
+          </button>
+        </div>
+
+        <!-- 3. 5 грн -->
+        <div class="border border-slate-800 bg-slate-950/70 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xl">
+              <i class="fa-solid fa-sack-dollar"></i>
+            </div>
+            <div>
+              <div class="font-brand font-bold text-xs text-white">5 Гривень на картку</div>
+              <div class="text-[11px] text-gray-400">Гіга-виплата на шаурму чи каву</div>
+              <div class="text-xs font-mono font-bold text-yellow-400 mt-0.5">25,000 BB</div>
+            </div>
+          </div>
+          <button onclick="orderExchangeItem('5 грн на картку', 25000)" class="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 text-white font-brand font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition">
+            Обміняти 💰
+          </button>
+        </div>
+      </div>
+
+      <!-- Категорія: Рофельні та ексклюзивні нагороди -->
+      <div class="space-y-3">
+        <div class="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
+          <i class="fa-solid fa-masks-theater"></i> Рофельні та VIP нагороди:
+        </div>
+
+        <!-- 4. Респект від Клюсика -->
+        <div class="border border-slate-800 bg-slate-950/70 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center text-white text-xl">
+              😎
+            </div>
+            <div>
+              <div class="font-brand font-bold text-xs text-white">Особистий респект від Клюсика</div>
+              <div class="text-[11px] text-gray-400">Повідомлення з похвалою у ваш Discord</div>
+              <div class="text-xs font-mono font-bold text-yellow-400 mt-0.5">12,000 BB</div>
+            </div>
+          </div>
+          <button onclick="orderExchangeItem('Особистий респект від Клюсика', 12000)" class="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-white font-brand font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition">
+            Купити 💬
+          </button>
+        </div>
+
+        <!-- 5. Сертифікат від Міші -->
+        <div class="border border-slate-800 bg-slate-950/70 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-red-600 to-rose-700 flex items-center justify-center text-white text-xl">
+              😈
+            </div>
+            <div>
+              <div class="font-brand font-bold text-xs text-white">Сертифікат «Міша чортик approved»</div>
+              <div class="text-[11px] text-gray-400">Офіційне визнання вас головним чортиком</div>
+              <div class="text-xs font-mono font-bold text-yellow-400 mt-0.5">18,000 BB</div>
+            </div>
+          </div>
+          <button onclick="orderExchangeItem('Сертифікат Міша чортик approved', 18000)" class="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-white font-brand font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition">
+            Купити 📜
+          </button>
+        </div>
+
+        <!-- 6. Кружечок або сигна від Бойка -->
+        <div class="border border-slate-800 bg-slate-950/70 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-fuchsia-600 to-pink-600 flex items-center justify-center text-white text-xl">
+              🎥
+            </div>
+            <div>
+              <div class="font-brand font-bold text-xs text-white">Ексклюзивний кружечок від Бойка</div>
+              <div class="text-[11px] text-gray-400">Відео-привіт або сигна спеціально для вас</div>
+              <div class="text-xs font-mono font-bold text-yellow-400 mt-0.5">35,000 BB</div>
+            </div>
+          </div>
+          <button onclick="orderExchangeItem('Ексклюзивний кружечок від Бойка', 35000)" class="w-full sm:w-auto bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:opacity-90 text-white font-brand font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition">
+            Купити 🎬
+          </button>
+        </div>
+
+        <!-- 7. Золотий VIP BoykoBet -->
+        <div class="border border-yellow-500/40 bg-slate-950/90 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 glow-gold">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-yellow-400 via-amber-500 to-yellow-600 flex items-center justify-center text-black text-xl font-black">
+              🏆
+            </div>
+            <div>
+              <div class="font-brand font-bold text-xs text-yellow-400">Золотий VIP Статус BoykoBet</div>
+              <div class="text-[11px] text-gray-400">Вічний статус короля казино та повага адмінів</div>
+              <div class="text-xs font-mono font-bold text-yellow-400 mt-0.5">75,000 BB</div>
+            </div>
+          </div>
+          <button onclick="orderExchangeItem('Золотий VIP Статус BoykoBet', 75000)" class="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-amber-500 hover:opacity-90 text-black font-brand font-bold px-4 py-2 rounded-xl text-xs uppercase tracking-wider transition">
+            Купити 👑
           </button>
         </div>
       </div>
@@ -1106,7 +1356,7 @@
   </div>
 
   <footer class="border-t border-slate-800/80 bg-slate-950 py-5 text-center text-xs text-gray-500">
-    BoykoBet &copy; 2026. Розважальний проєкт на віртуальні монети.
+    BoykoBet &copy; 2026. Захищена система розваг на віртуальні монети.
   </footer>
 </body>
 </html>
