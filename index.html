@@ -3,17 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BoykoBet | Преміум чесне віртуальне казино</title>
-  
-  <!-- Tailwind CSS & Confetti -->
+  <title>BoykoBet | Чесне віртуальне казино</title>
+
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-  
-  <!-- Шрифти та іконки -->
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Unbounded:wght@700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
     body {
@@ -22,22 +23,10 @@
       color: #f8fafc;
       overflow-x: hidden;
     }
-    .font-brand {
-      font-family: 'Unbounded', sans-serif;
-    }
-    .glow-gold {
-      box-shadow: 0 0 25px -5px rgba(234, 179, 8, 0.4);
-    }
-    .glow-purple {
-      box-shadow: 0 0 30px -5px rgba(168, 85, 247, 0.35);
-    }
-    .text-glow {
-      text-shadow: 0 0 12px rgba(234, 179, 8, 0.6);
-    }
-    /* 3D Монетка */
-    .coin-perspective {
-      perspective: 1000px;
-    }
+    .font-brand { font-family: 'Unbounded', sans-serif; }
+    .glow-gold { box-shadow: 0 0 25px -5px rgba(234, 179, 8, 0.4); }
+    .glow-purple { box-shadow: 0 0 30px -5px rgba(168, 85, 247, 0.35); }
+    .coin-perspective { perspective: 1000px; }
     .coin-3d {
       transform-style: preserve-3d;
       transition: transform 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -48,10 +37,7 @@
       inset: 0;
       border-radius: 50%;
     }
-    .coin-back {
-      transform: rotateY(180deg);
-    }
-    /* Анімації */
+    .coin-back { transform: rotateY(180deg); }
     @keyframes screenShake {
       0%, 100% { transform: translate(0, 0); }
       20% { transform: translate(-8px, 6px); }
@@ -59,26 +45,22 @@
       60% { transform: translate(-6px, -4px); }
       80% { transform: translate(6px, 4px); }
     }
-    .shake-anim {
-      animation: screenShake 0.4s ease-in-out;
-    }
+    .shake-anim { animation: screenShake 0.4s ease-in-out; }
     @keyframes reelSpin {
       0% { filter: blur(0px); transform: translateY(0); }
       50% { filter: blur(3px); transform: translateY(-12px); }
       100% { filter: blur(0px); transform: translateY(0); }
     }
-    .reel-spinning {
-      animation: reelSpin 0.12s infinite;
-    }
+    .reel-spinning { animation: reelSpin 0.12s infinite; }
   </style>
 
-  <!-- ================= ГОЛОВНИЙ СКРИПТ (data-cfasync="false" захищає від Rocket Loader) ================= -->
+  <!-- ================= СИСТЕМА СКРИПТІВ (ЗАХИЩЕНА ВІД КЕШУ ТА ROCKET LOADER) ================= -->
   <script data-cfasync="false">
-    // Змінні та аудіо
-    var audioCtx = null;
-    var isSoundMuted = false;
-    var STORAGE_KEY = 'boyko_bet_v3_stable';
-    var WEBHOOK_KEY = 'boyko_bet_webhook_url';
+    console.log("%c[BoykoBet] Ініціалізація ядра...", "color: #eab308; font-weight: bold; font-size: 14px;");
+
+    // Глобальний стан
+    var STORAGE_KEY = 'boyko_bet_v4_core';
+    var WEBHOOK_KEY = 'boyko_bet_webhook_v4';
 
     var user = {
       username: 'Гість',
@@ -86,162 +68,131 @@
       usedPromos: []
     };
 
-    var SLOT_SYMBOLS = ['🍒', '🍋', '🍇', '🔔', '7️⃣', '💎', '👑'];
-    var chosenCoinSide = 'heads';
-    var isFlippingCoin = false;
+    var audioCtx = null;
+    var isMuted = false;
 
-    var minesState = {
-      active: false,
-      bet: 0,
-      grid: [],
-      revealed: [],
-      minesCount: 3,
-      currentMultiplier: 1.00
-    };
-
-    const PROMO_CODES = {
-      'matviygey': { amount: 5000, name: 'Спеціальний бонус від Matviy: +5,000 BB!' },
-      'klusikboss': { amount: 10000, name: 'БОС-бонус від Klusik: +10,000 BB!' }
-      'mishachortik': { amount: 15000, name: 'ГІГА-бонус від МІШИ: +15,000 BB!' }
-      'boykobigass': { amount: 50000, name: 'ДЖЕКПОТ ВІД БОЙКА: +50,000 BB!' }
-    };
-
-    // Аудіо функції
-    function initAudio() {
+    // Вбудований синтезатор звуків SFX
+    function getAudioContext() {
       if (!audioCtx) {
-        var AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtx) audioCtx = new AudioCtx();
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
       }
       if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
       }
+      return audioCtx;
     }
 
-    function toggleSound() {
-      isSoundMuted = !isSoundMuted;
-      var icon = document.getElementById('sound-icon');
-      if (icon) {
-        icon.className = isSoundMuted ? 'fa-solid fa-volume-xmark text-rose-400' : 'fa-solid fa-volume-high text-yellow-400';
-      }
-      if (!isSoundMuted) playTone(800, 400, 0.05, 'sine');
-    }
-
-    function playTone(freqStart, freqEnd, duration, type) {
-      if (isSoundMuted) return;
+    function playTone(freqStart, freqEnd, dur, type) {
+      if (isMuted) return;
       try {
-        initAudio();
-        if (!audioCtx) return;
-        var osc = audioCtx.createOscillator();
-        var gain = audioCtx.createGain();
+        var ctx = getAudioContext();
+        if (!ctx) return;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
         osc.type = type || 'sine';
-        osc.frequency.setValueAtTime(freqStart, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(freqStart, ctx.currentTime);
         if (freqEnd) {
-          osc.frequency.exponentialRampToValueAtTime(freqEnd, audioCtx.currentTime + duration);
+          osc.frequency.exponentialRampToValueAtTime(freqEnd, ctx.currentTime + dur);
         }
-        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
         osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        gain.connect(ctx.destination);
         osc.start();
-        osc.stop(audioCtx.currentTime + duration);
+        osc.stop(ctx.currentTime + dur);
       } catch (e) {}
     }
 
     function playWinSound() {
-      if (isSoundMuted) return;
-      var freqs = [523.25, 659.25, 783.99, 1046.50];
-      for (var i = 0; i < freqs.length; i++) {
+      if (isMuted) return;
+      var notes = [523.25, 659.25, 783.99, 1046.50];
+      for (var i = 0; i < notes.length; i++) {
         (function(idx) {
           setTimeout(function() {
-            playTone(freqs[idx], freqs[idx] * 1.05, 0.2, 'triangle');
-          }, idx * 80);
+            playTone(notes[idx], notes[idx] * 1.05, 0.18, 'triangle');
+          }, idx * 75);
         })(i);
       }
     }
 
     function playExplosionSound() {
-      if (isSoundMuted) return;
+      if (isMuted) return;
       try {
-        initAudio();
-        if (!audioCtx) return;
-        var bufferSize = audioCtx.sampleRate * 0.35;
-        var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        var data = buffer.getChannelData(0);
-        for (var i = 0; i < bufferSize; i++) {
-          data[i] = Math.random() * 2 - 1;
-        }
-        var noise = audioCtx.createBufferSource();
-        noise.buffer = buffer;
-        var filter = audioCtx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(300, audioCtx.currentTime);
-        filter.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.3);
-
-        var gain = audioCtx.createGain();
-        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
-
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(audioCtx.destination);
-        noise.start();
+        var ctx = getAudioContext();
+        if (!ctx) return;
+        var bSize = ctx.sampleRate * 0.3;
+        var buf = ctx.createBuffer(1, bSize, ctx.sampleRate);
+        var data = buf.getChannelData(0);
+        for (var i = 0; i < bSize; i++) data[i] = Math.random() * 2 - 1;
+        var src = ctx.createBufferSource();
+        src.buffer = buf;
+        var flt = ctx.createBiquadFilter();
+        flt.type = 'lowpass';
+        flt.frequency.setValueAtTime(280, ctx.currentTime);
+        flt.frequency.linearRampToValueAtTime(40, ctx.currentTime + 0.28);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.35, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        src.connect(flt);
+        flt.connect(g);
+        g.connect(ctx.destination);
+        src.start();
       } catch(e) {}
     }
 
-    // Профіль
+    // Профіль та інтерфейс
     function loadProfile() {
-      var data = localStorage.getItem(STORAGE_KEY);
-      if (data) {
-        try {
-          user = JSON.parse(data);
-          var modal = document.getElementById('auth-modal');
-          if (modal) modal.classList.add('hidden');
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          user = JSON.parse(raw);
+          var m = document.getElementById('auth-modal');
+          if (m) m.classList.add('hidden');
           refreshUI();
           return;
-        } catch (e) {}
-      }
+        }
+      } catch (e) {}
       showAuthModal();
     }
 
     function saveProfile() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      } catch (e) {}
       refreshUI();
     }
 
     function refreshUI() {
-      var balEl = document.getElementById('user-balance');
-      var nameEl = document.getElementById('nav-user-name');
-      if (balEl) balEl.innerText = Number(user.balance).toLocaleString();
-      if (nameEl) nameEl.innerText = user.username;
+      var bal = document.getElementById('user-balance');
+      var usr = document.getElementById('nav-user-name');
+      if (bal) bal.innerText = Number(user.balance).toLocaleString();
+      if (usr) usr.innerText = user.username;
     }
 
     function showAuthModal() {
-      var modal = document.getElementById('auth-modal');
-      if (modal) modal.classList.remove('hidden');
+      var m = document.getElementById('auth-modal');
+      if (m) m.classList.remove('hidden');
     }
 
     function loginUser() {
       playTone(800, 400, 0.05, 'sine');
-      var input = document.getElementById('auth-username');
-      var name = input ? input.value.trim() : '';
+      var inp = document.getElementById('auth-username');
+      var name = inp ? inp.value.trim() : '';
       if (!name) {
         alert('Введіть нікнейм!');
         return;
       }
-      user = {
-        username: name,
-        balance: 1000,
-        usedPromos: []
-      };
+      user = { username: name, balance: 1000, usedPromos: [] };
       saveProfile();
-      var modal = document.getElementById('auth-modal');
-      if (modal) modal.classList.add('hidden');
+      var m = document.getElementById('auth-modal');
+      if (m) m.classList.add('hidden');
       playWinSound();
       if (typeof confetti === 'function') confetti({ particleCount: 50 });
     }
 
     function logoutUser() {
-      if (confirm('Вийти з профілю?')) {
+      if (confirm('Бажаєте скинути профіль та вийти?')) {
         localStorage.removeItem(STORAGE_KEY);
         location.reload();
       }
@@ -253,7 +204,16 @@
       saveProfile();
       playWinSound();
       if (typeof confetti === 'function') confetti({ particleCount: 40 });
-      alert('Вам нараховано бонус: +500 BB!');
+      alert('Бонус отримано: +500 BB!');
+    }
+
+    function toggleSound() {
+      isMuted = !isMuted;
+      var icon = document.getElementById('sound-icon');
+      if (icon) {
+        icon.className = isMuted ? 'fa-solid fa-volume-xmark text-rose-400' : 'fa-solid fa-volume-high text-yellow-400';
+      }
+      if (!isMuted) playTone(800, 400, 0.05, 'sine');
     }
 
     function switchTab(name) {
@@ -266,9 +226,9 @@
         btn.classList.add('bg-slate-900', 'text-gray-400', 'border-slate-800');
       });
 
-      var targetView = document.getElementById('view-' + name);
+      var target = document.getElementById('view-' + name);
       var activeTab = document.getElementById('tab-' + name);
-      if (targetView) targetView.classList.remove('hidden');
+      if (target) target.classList.remove('hidden');
       if (activeTab) {
         activeTab.classList.add('bg-yellow-500', 'text-black', 'border-yellow-400');
         activeTab.classList.remove('bg-slate-900', 'text-gray-400', 'border-slate-800');
@@ -280,22 +240,23 @@
       var el = document.getElementById(id);
       if (el) el.value = val;
     }
-    var setBetVal = setBet; // Аліас для сумісності
+    var setBetVal = setBet;
 
     function multiplyBet(id, mult) {
       playTone(600, 300, 0.03, 'sine');
       var el = document.getElementById(id);
       if (el) el.value = Math.max(10, Math.floor(Number(el.value) * mult));
     }
-    var multBetVal = multiplyBet; // Аліас для сумісності
+    var multBetVal = multiplyBet;
 
     // Слоти
+    var SLOT_SYMBOLS = ['🍒', '🍋', '🍇', '🔔', '7️⃣', '💎', '👑'];
     function spinSlots() {
       playTone(600, 300, 0.05, 'sine');
-      var input = document.getElementById('slots-bet');
-      var bet = parseInt(input.value, 10);
+      var inp = document.getElementById('slots-bet');
+      var bet = parseInt(inp.value, 10);
       if (isNaN(bet) || bet <= 0) return alert('Вкажіть ставку!');
-      if (user.balance < bet) return alert('Недостатньо BB монет!');
+      if (user.balance < bet) return alert('Недостатньо BB!');
 
       user.balance -= bet;
       saveProfile();
@@ -305,13 +266,12 @@
       if (btn) btn.disabled = true;
       if (msg) {
         msg.innerText = 'Обертання...';
-        msg.className = 'h-7 mt-4 text-center font-brand font-bold text-sm text-yellow-400 tracking-wide';
+        msg.className = 'h-7 mt-4 text-center font-brand font-bold text-sm text-yellow-400';
       }
 
       var r1 = document.getElementById('reel-1');
       var r2 = document.getElementById('reel-2');
       var r3 = document.getElementById('reel-3');
-
       if (r1) r1.classList.add('reel-spinning');
       if (r2) r2.classList.add('reel-spinning');
       if (r3) r3.classList.add('reel-spinning');
@@ -329,53 +289,44 @@
           if (r1) r1.classList.remove('reel-spinning');
           if (r2) r2.classList.remove('reel-spinning');
           if (r3) r3.classList.remove('reel-spinning');
-          concludeSlots(bet);
+
+          var s1 = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
+          var s2 = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
+          var s3 = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
+          if (r1) r1.innerText = s1;
+          if (r2) r2.innerText = s2;
+          if (r3) r3.innerText = s3;
+
+          var win = 0;
+          if (s1 === s2 && s2 === s3) {
+            win = (s1 === '👑') ? bet * 15 : ((s1 === '💎') ? bet * 8 : ((s1 === '7️⃣') ? bet * 5 : bet * 4));
+          } else if (s1 === s2 || s2 === s3 || s1 === s3) {
+            win = Math.floor(bet * 1.5);
+          }
+
+          if (win > 0) {
+            user.balance += win;
+            saveProfile();
+            playWinSound();
+            if (typeof confetti === 'function') confetti({ particleCount: 60 });
+            if (msg) {
+              msg.innerText = '🎉 Виграш: +' + win + ' BB!';
+              msg.className = 'h-7 mt-4 text-center font-brand font-black text-sm text-emerald-400';
+            }
+          } else {
+            if (msg) {
+              msg.innerText = 'Не пощастило. Спробуйте ще!';
+              msg.className = 'h-7 mt-4 text-center font-brand font-bold text-sm text-rose-500';
+            }
+          }
           if (btn) btn.disabled = false;
         }
       }, 75);
     }
 
-    function concludeSlots(bet) {
-      var s1 = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
-      var s2 = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
-      var s3 = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
-
-      var r1 = document.getElementById('reel-1');
-      var r2 = document.getElementById('reel-2');
-      var r3 = document.getElementById('reel-3');
-      if (r1) r1.innerText = s1;
-      if (r2) r2.innerText = s2;
-      if (r3) r3.innerText = s3;
-
-      var win = 0;
-      if (s1 === s2 && s2 === s3) {
-        if (s1 === '👑') win = bet * 15;
-        else if (s1 === '💎') win = bet * 8;
-        else if (s1 === '7️⃣') win = bet * 5;
-        else win = bet * 4;
-      } else if (s1 === s2 || s2 === s3 || s1 === s3) {
-        win = Math.floor(bet * 1.5);
-      }
-
-      var msg = document.getElementById('slots-msg');
-      if (win > 0) {
-        user.balance += win;
-        saveProfile();
-        playWinSound();
-        if (typeof confetti === 'function') confetti({ particleCount: 60 });
-        if (msg) {
-          msg.innerText = '🎉 Виграш: +' + win + ' BB!';
-          msg.className = 'h-7 mt-4 text-center font-brand font-black text-sm text-emerald-400 tracking-wide';
-        }
-      } else {
-        if (msg) {
-          msg.innerText = 'Не пощастило. Спробуйте ще!';
-          msg.className = 'h-7 mt-4 text-center font-brand font-bold text-sm text-rose-500 tracking-wide';
-        }
-      }
-    }
-
     // Монетка
+    var chosenCoinSide = 'heads';
+    var isFlippingCoin = false;
     function chooseSide(side) {
       playTone(500, 250, 0.03, 'sine');
       chosenCoinSide = side;
@@ -393,8 +344,8 @@
 
     function flipCoinAction() {
       if (isFlippingCoin) return;
-      var input = document.getElementById('coin-bet');
-      var bet = parseInt(input.value, 10);
+      var inp = document.getElementById('coin-bet');
+      var bet = parseInt(inp.value, 10);
       if (isNaN(bet) || bet <= 0) return alert('Вкажіть ставку!');
       if (user.balance < bet) return alert('Недостатньо BB!');
 
@@ -405,7 +356,6 @@
       var coinEl = document.getElementById('coin-element');
       var msg = document.getElementById('coin-msg');
       var btn = document.getElementById('coin-flip-btn');
-
       if (btn) btn.disabled = true;
       if (msg) {
         msg.innerText = 'Монетка в польоті...';
@@ -413,15 +363,13 @@
       }
 
       playTone(300, 900, 0.25, 'sine');
-
-      var outcome = Math.random() < 0.5 ? 'heads' : 'tails';
-      var rot = outcome === 'heads' ? 1800 : 1980;
+      var outcome = (Math.random() < 0.5) ? 'heads' : 'tails';
+      var rot = (outcome === 'heads') ? 1800 : 1980;
       if (coinEl) coinEl.style.transform = 'rotateY(' + rot + 'deg)';
 
       setTimeout(function() {
         isFlippingCoin = false;
         if (btn) btn.disabled = false;
-
         if (outcome === chosenCoinSide) {
           var win = Math.floor(bet * 1.96);
           user.balance += win;
@@ -429,42 +377,39 @@
           playWinSound();
           if (typeof confetti === 'function') confetti({ particleCount: 50 });
           if (msg) {
-            msg.innerText = 'Влучно! Випав ' + (outcome === 'heads' ? 'Орел' : 'Решка') + ' (+' + win + ' BB)';
+            msg.innerText = 'Влучно! Випав ' + ((outcome === 'heads') ? 'Орел' : 'Решка') + ' (+' + win + ' BB)';
             msg.className = 'h-6 mt-6 font-mono font-black text-sm text-emerald-400';
           }
         } else {
           if (msg) {
-            msg.innerText = 'Програш! Випав ' + (outcome === 'heads' ? 'Орел' : 'Решка');
+            msg.innerText = 'Програш! Випав ' + ((outcome === 'heads') ? 'Орел' : 'Решка');
             msg.className = 'h-6 mt-6 font-mono font-bold text-sm text-rose-500';
           }
         }
-
         setTimeout(function() {
           if (coinEl) {
             coinEl.style.transition = 'none';
-            coinEl.style.transform = outcome === 'heads' ? 'rotateY(0deg)' : 'rotateY(180deg)';
+            coinEl.style.transform = (outcome === 'heads') ? 'rotateY(0deg)' : 'rotateY(180deg)';
             setTimeout(function() {
               coinEl.style.transition = 'transform 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
             }, 50);
           }
         }, 1000);
-
       }, 1250);
     }
 
     // Міни
+    var minesState = { active: false, bet: 0, grid: [], revealed: [], minesCount: 3, currentMultiplier: 1.00 };
     function initMinesGrid() {
-      var container = document.getElementById('mines-grid');
-      if (!container) return;
-      container.innerHTML = '';
+      var c = document.getElementById('mines-grid');
+      if (!c) return;
+      c.innerHTML = '';
       for (var i = 0; i < 25; i++) {
         var tile = document.createElement('button');
-        tile.className = 'w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 border border-slate-700/80 rounded-2xl text-xl flex items-center justify-center hover:border-yellow-400 transition transform hover:scale-105 active:scale-95';
+        tile.className = 'w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 border border-slate-700/80 rounded-2xl text-xl flex items-center justify-center hover:border-yellow-400 transition';
         tile.id = 'tile-' + i;
-        tile.onclick = (function(index) {
-          return function() { onTileClick(index); };
-        })(i);
-        container.appendChild(tile);
+        tile.onclick = (function(idx) { return function() { onTileClick(idx); }; })(i);
+        c.appendChild(tile);
       }
     }
 
@@ -472,7 +417,6 @@
       playTone(600, 300, 0.05, 'sine');
       var bet = parseInt(document.getElementById('mines-bet').value, 10);
       var mCount = parseInt(document.getElementById('mines-count').value, 10);
-
       if (isNaN(bet) || bet <= 0) return alert('Вкажіть ставку!');
       if (user.balance < bet) return alert('Недостатньо BB!');
       if (mCount < 1 || mCount > 24) return alert('Кількість мін: від 1 до 24');
@@ -480,22 +424,11 @@
       user.balance -= bet;
       saveProfile();
 
-      minesState = {
-        active: true,
-        bet: bet,
-        minesCount: mCount,
-        currentMultiplier: 1.00,
-        revealed: [],
-        grid: new Array(25).fill(false)
-      };
-
+      minesState = { active: true, bet: bet, minesCount: mCount, currentMultiplier: 1.00, revealed: [], grid: new Array(25).fill(false) };
       var placed = 0;
       while (placed < mCount) {
-        var rand = Math.floor(Math.random() * 25);
-        if (!minesState.grid[rand]) {
-          minesState.grid[rand] = true;
-          placed++;
-        }
+        var r = Math.floor(Math.random() * 25);
+        if (!minesState.grid[r]) { minesState.grid[r] = true; placed++; }
       }
 
       initMinesGrid();
@@ -511,7 +444,6 @@
 
     function onTileClick(idx) {
       if (!minesState.active || minesState.revealed.includes(idx)) return;
-
       var tile = document.getElementById('tile-' + idx);
       minesState.revealed.push(idx);
 
@@ -533,22 +465,14 @@
           tile.className = 'w-12 h-12 sm:w-14 sm:h-14 bg-emerald-950 border-2 border-emerald-400 rounded-2xl text-xl flex items-center justify-center glow-gold';
         }
         playTone(980, 1310, 0.15, 'sine');
-
         var opened = minesState.revealed.length;
         var total = 25;
         var safeTotal = total - minesState.minesCount;
-
         var mult = 1;
-        for (var i = 0; i < opened; i++) {
-          mult *= (total - i) / (safeTotal - i);
-        }
+        for (var i = 0; i < opened; i++) mult *= (total - i) / (safeTotal - i);
         minesState.currentMultiplier = (mult * 0.98).toFixed(2);
-        var multDisp = document.getElementById('mines-mult-display');
-        if (multDisp) multDisp.innerText = minesState.currentMultiplier + 'x';
-
-        if (opened === safeTotal) {
-          cashoutMines();
-        }
+        document.getElementById('mines-mult-display').innerText = minesState.currentMultiplier + 'x';
+        if (opened === safeTotal) cashoutMines();
       }
     }
 
@@ -557,26 +481,20 @@
       var win = Math.floor(minesState.bet * parseFloat(minesState.currentMultiplier));
       user.balance += win;
       saveProfile();
-
       playWinSound();
       if (typeof confetti === 'function') confetti({ particleCount: 70 });
-
       var st = document.getElementById('mines-status-text');
       if (st) {
         st.innerText = 'Забрано: +' + win + ' BB (' + minesState.currentMultiplier + 'x)!';
         st.className = 'h-6 mt-4 font-mono font-black text-xs sm:text-sm text-emerald-400';
       }
-
       finishMinesGame(true);
     }
 
     function finishMinesGame(won) {
       minesState.active = false;
-      var sBtn = document.getElementById('mines-start-btn');
-      var cBtn = document.getElementById('mines-cashout-btn');
-      if (sBtn) sBtn.disabled = false;
-      if (cBtn) cBtn.disabled = true;
-
+      document.getElementById('mines-start-btn').disabled = false;
+      document.getElementById('mines-cashout-btn').disabled = true;
       for (var i = 0; i < 25; i++) {
         var tile = document.getElementById('tile-' + i);
         if (tile && minesState.grid[i] && !minesState.revealed.includes(i)) {
@@ -584,7 +502,6 @@
           tile.classList.add('opacity-40');
         }
       }
-
       if (!won) {
         var st = document.getElementById('mines-status-text');
         if (st) {
@@ -606,7 +523,6 @@
       var btn = document.getElementById('case-btn');
       var box = document.getElementById('case-box');
       var txt = document.getElementById('case-result-text');
-
       if (btn) btn.disabled = true;
       if (box) box.classList.add('animate-bounce');
       if (txt) {
@@ -627,19 +543,10 @@
           var prize = 150;
           var label = 'Звичайна нагорода: 150 BB';
 
-          if (rand < 2) {
-            prize = 5000;
-            label = '👑 ДЖЕКПОТ БОЙКА: 5,000 BB!';
-          } else if (rand < 10) {
-            prize = 1200;
-            label = '💎 Міфічний кристал: 1,200 BB!';
-          } else if (rand < 35) {
-            prize = 600;
-            label = '⚡ Рідкісний дроп: 600 BB!';
-          } else if (rand < 65) {
-            prize = 350;
-            label = '🪙 Окуп: 350 BB!';
-          }
+          if (rand < 2) { prize = 5000; label = '👑 ДЖЕКПОТ: 5,000 BB!'; }
+          else if (rand < 10) { prize = 1200; label = '💎 Кристал: 1,200 BB!'; }
+          else if (rand < 35) { prize = 600; label = '⚡ Рідкісний дроп: 600 BB!'; }
+          else if (rand < 65) { prize = 350; label = '🪙 Окуп: 350 BB!'; }
 
           user.balance += prize;
           saveProfile();
@@ -660,6 +567,10 @@
     }
 
     // Промокоди
+    var PROMO_CODES = {
+      'matviygey': { amount: 5000, desc: 'Бонус від Matviy: +5,000 BB!' },
+      'klusikboss': { amount: 10000, desc: 'БОС-бонус від Klusik: +10,000 BB!' }
+    };
     function openPromoModal() {
       playTone(700, 350, 0.04, 'sine');
       var m = document.getElementById('promo-modal');
@@ -672,43 +583,31 @@
       var m = document.getElementById('promo-modal');
       if (m) m.classList.add('hidden');
     }
-
     function redeemPromoCode() {
       playTone(600, 300, 0.05, 'sine');
-      var input = document.getElementById('promo-code-input');
-      var code = input ? input.value.trim().toLowerCase() : '';
+      var inp = document.getElementById('promo-code-input');
+      var code = inp ? inp.value.trim().toLowerCase() : '';
       var toast = document.getElementById('promo-toast');
 
       if (!code) return;
-
       if (!PROMO_CODES[code]) {
-        if (toast) {
-          toast.innerText = 'Недійсний промокод!';
-          toast.className = 'text-xs font-bold text-center h-5 text-rose-500';
-        }
+        if (toast) { toast.innerText = 'Недійсний промокод!'; toast.className = 'text-xs font-bold text-center h-5 text-rose-500'; }
         return;
       }
-
       if (user.usedPromos.includes(code)) {
-        if (toast) {
-          toast.innerText = 'Ви вже активували цей код!';
-          toast.className = 'text-xs font-bold text-center h-5 text-amber-400';
-        }
+        if (toast) { toast.innerText = 'Ви вже активували цей код!'; toast.className = 'text-xs font-bold text-center h-5 text-amber-400'; }
         return;
       }
 
-      var reward = PROMO_CODES[code].amount;
-      user.balance += reward;
+      var rew = PROMO_CODES[code].amount;
+      user.balance += rew;
       user.usedPromos.push(code);
       saveProfile();
 
-      if (toast) {
-        toast.innerText = PROMO_CODES[code].desc;
-        toast.className = 'text-xs font-bold text-center h-5 text-emerald-400';
-      }
+      if (toast) { toast.innerText = PROMO_CODES[code].desc; toast.className = 'text-xs font-bold text-center h-5 text-emerald-400'; }
       playWinSound();
       if (typeof confetti === 'function') confetti({ particleCount: 70 });
-      if (input) input.value = '';
+      if (inp) inp.value = '';
     }
 
     // Магазин
@@ -724,66 +623,47 @@
       var m = document.getElementById('shop-modal');
       if (m) m.classList.add('hidden');
     }
-
     function orderExchangeItem(itemName, price) {
       playTone(600, 300, 0.05, 'sine');
-      var hookInput = document.getElementById('webhook-url');
-      var contactInput = document.getElementById('recipient-contact');
-      var hook = hookInput ? hookInput.value.trim() : '';
-      var contact = contactInput ? contactInput.value.trim() : '';
+      var hook = (document.getElementById('webhook-url') || {}).value || '';
+      var contact = (document.getElementById('recipient-contact') || {}).value || '';
       var alertEl = document.getElementById('shop-alert');
 
+      hook = hook.trim();
+      contact = contact.trim();
+
       if (!contact) {
-        if (alertEl) {
-          alertEl.innerText = 'Вкажіть контакт для отримання призу!';
-          alertEl.className = 'mt-4 text-xs font-bold text-center text-rose-400';
-        }
+        if (alertEl) { alertEl.innerText = 'Вкажіть контакт для виплати!'; alertEl.className = 'mt-4 text-xs font-bold text-center text-rose-400'; }
         return;
       }
-
       if (user.balance < price) {
-        if (alertEl) {
-          alertEl.innerText = 'Недостатньо BB монет!';
-          alertEl.className = 'mt-4 text-xs font-bold text-center text-rose-400';
-        }
+        if (alertEl) { alertEl.innerText = 'Недостатньо BB монет!'; alertEl.className = 'mt-4 text-xs font-bold text-center text-rose-400'; }
         return;
       }
 
-      if (hook) {
-        localStorage.setItem(WEBHOOK_KEY, hook);
-      }
+      if (hook) localStorage.setItem(WEBHOOK_KEY, hook);
 
-      if (alertEl) {
-        alertEl.innerText = 'Обробка заявки...';
-        alertEl.className = 'mt-4 text-xs font-bold text-center text-yellow-400';
-      }
+      if (alertEl) { alertEl.innerText = 'Обробка заявки...'; alertEl.className = 'mt-4 text-xs font-bold text-center text-yellow-400'; }
 
       var payload = {
         username: "BoykoBet Cashier",
         avatar_url: "https://cdn-icons-png.flaticon.com/512/2953/2953363.png",
-        embeds: [
-          {
-            title: "🎰 Нова заявка на вивід / обмін BoykoBet",
-            color: 16766720,
-            fields: [
-              { name: "👤 Користувач", value: String(user.username), inline: true },
-              { name: "🎁 Товар", value: String(itemName), inline: true },
-              { name: "🪙 Вартість", value: String(price) + " BB", inline: true },
-              { name: "📱 Реквізити / Контакт", value: String(contact), inline: false },
-              { name: "⏰ Час заявки", value: new Date().toLocaleString('uk-UA'), inline: false }
-            ],
-            footer: { text: "BoykoBet Provably Fair Automation" }
-          }
-        ]
+        embeds: [{
+          title: "🎰 Нова заявка на вивід BoykoBet",
+          color: 16766720,
+          fields: [
+            { name: "👤 Користувач", value: String(user.username), inline: true },
+            { name: "🎁 Товар", value: String(itemName), inline: true },
+            { name: "🪙 Вартість", value: String(price) + " BB", inline: true },
+            { name: "📱 Реквізити", value: String(contact), inline: false },
+            { name: "⏰ Час", value: new Date().toLocaleString('uk-UA'), inline: false }
+          ]
+        }]
       };
 
       if (hook) {
         try {
-          fetch(hook, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          }).catch(function() {});
+          fetch(hook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(function() {});
         } catch(e) {}
       }
 
@@ -791,28 +671,17 @@
       saveProfile();
       playWinSound();
       if (typeof confetti === 'function') confetti({ particleCount: 75 });
-
       if (alertEl) {
-        alertEl.innerText = '✅ Запит на "' + itemName + '" успішно оформлено!';
+        alertEl.innerText = '✅ Запит на "' + itemName + '" оформлено!';
         alertEl.className = 'mt-4 text-xs font-bold text-center text-emerald-400';
       }
     }
 
-    // Слухач завантаження DOM
-    window.addEventListener('DOMContentLoaded', function() {
-      loadProfile();
-      initMinesGrid();
-      var savedHook = localStorage.getItem(WEBHOOK_KEY);
-      var hookInput = document.getElementById('webhook-url');
-      if (savedHook && hookInput) {
-        hookInput.value = savedHook;
-      }
-    });
-
-    // Реєстрація у глобальному просторі імен window
+    // Реєстрація у глобальному об'єкті window
     window.loginUser = loginUser;
     window.logoutUser = logoutUser;
     window.getDailyBonus = getDailyBonus;
+    window.toggleSound = toggleSound;
     window.switchTab = switchTab;
     window.setBet = setBet;
     window.setBetVal = setBet;
@@ -830,7 +699,16 @@
     window.openShopModal = openShopModal;
     window.closeShopModal = closeShopModal;
     window.orderExchangeItem = orderExchangeItem;
-    window.toggleSound = toggleSound;
+
+    // Автоініціалізація
+    window.addEventListener('DOMContentLoaded', function() {
+      loadProfile();
+      initMinesGrid();
+      var saved = localStorage.getItem(WEBHOOK_KEY);
+      var inp = document.getElementById('webhook-url');
+      if (saved && inp) inp.value = saved;
+      console.log("%c[BoykoBet] JS завантажено успішно! Готовий до гри.", "color: #10b981; font-weight: bold; font-size: 14px;");
+    });
   </script>
 </head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-yellow-500 selection:text-black">
@@ -843,7 +721,7 @@
           B
         </div>
         <h2 class="font-brand text-2xl font-black text-yellow-400">Boyko<span class="text-white">Bet</span></h2>
-        <p class="text-xs text-gray-400 mt-1">Введіть нікнейм для входу у гру</p>
+        <p class="text-xs text-gray-400 mt-1">Введіть нікнейм для старту</p>
       </div>
 
       <div class="space-y-4">
@@ -921,10 +799,10 @@
     <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-950/70 via-slate-900 to-slate-950 border border-purple-500/20 p-5 sm:p-7 glow-purple flex flex-col md:flex-row items-center justify-between gap-6">
       <div class="space-y-2 text-center md:text-left z-10">
         <div class="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1 rounded-full text-yellow-400 text-xs font-bold">
-          <i class="fa-solid fa-shield-halved"></i> Provably Fair Game
+          <i class="fa-solid fa-shield-halved"></i> 100% Provably Fair
         </div>
         <h1 class="text-2xl sm:text-3xl font-brand font-black text-white">
-          Казино розваг на <span class="text-yellow-400 text-glow">BoykoCoins</span>
+          Казино розваг на <span class="text-yellow-400">BoykoCoins</span>
         </h1>
         <p class="text-xs sm:text-sm text-gray-400 max-w-xl">
           Вигравай віртуальні монети та обмінюй їх на <span class="text-purple-400 font-semibold">MakeIt Premium (7d)</span> або <span class="text-yellow-400 font-semibold">1 грн</span> через Discord Webhook!
@@ -1077,9 +955,7 @@
           <h2 class="font-brand font-black text-2xl text-white">CYBER MINES</h2>
         </div>
 
-        <div id="mines-grid" class="grid grid-cols-5 gap-2.5 sm:gap-3 p-4 bg-slate-950/80 rounded-2xl border border-slate-800">
-          <!-- Генерується динамічно -->
-        </div>
+        <div id="mines-grid" class="grid grid-cols-5 gap-2.5 sm:gap-3 p-4 bg-slate-950/80 rounded-2xl border border-slate-800"></div>
 
         <div id="mines-status-text" class="h-6 mt-4 font-mono font-bold text-xs sm:text-sm text-gray-400">
           Вкажіть міни та натисніть «Почати раунд»
@@ -1181,7 +1057,7 @@
           <i class="fa-brands fa-discord"></i> Discord Webhook URL (для автоматичної заявки):
         </label>
         <input type="text" id="webhook-url" placeholder="https://discord.com/api/webhooks/..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-gray-200 focus:border-yellow-400 focus:outline-none">
-        <span class="text-[10px] text-gray-500 block mt-1">Зберігається у вашому браузері. Заявка відправиться у вказаний канал!</span>
+        <span class="text-[10px] text-gray-500 block mt-1">URL зберігається у браузері. Заявка відправиться у вказаний канал!</span>
       </div>
 
       <div class="mb-5">
